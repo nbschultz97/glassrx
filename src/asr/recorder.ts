@@ -1,6 +1,8 @@
 // GlassRx — Microphone recorder via Even Hub SDK
 // Manages audio capture lifecycle and feeds PCM to STT
 
+import { AudioInputSource } from '@evenrealities/even_hub_sdk';
+
 import { startSttStream, sendPcm, stopSttStream, isConfigured, type SttCallback } from './stt';
 
 let bridge: any = null;
@@ -18,7 +20,7 @@ export function canRecord(): boolean {
   return isConfigured() && bridge != null;
 }
 
-export function startRecording(onSnapshot: SttCallback): boolean {
+export async function startRecording(onSnapshot: SttCallback): Promise<boolean> {
   if (isRecording || !bridge) return false;
 
   const started = startSttStream(onSnapshot);
@@ -26,12 +28,21 @@ export function startRecording(onSnapshot: SttCallback): boolean {
 
   isRecording = true;
 
-  // Enable microphone via SDK
+  // Enable the glasses microphone. audioControl resolves to false when the OS
+  // denies the mic (missing g2-microphone permission, or the startup page is
+  // not up yet) — treat that as a failed start rather than sitting in a
+  // "listening" state that will never receive audio.
+  let opened = false;
   try {
-    bridge.audioControl(true);
+    opened = await bridge.audioControl(true, AudioInputSource.Glasses);
   } catch (err) {
     console.error('GlassRx Recorder: audioControl failed:', err);
+  }
+
+  if (!opened) {
+    console.error('GlassRx Recorder: microphone unavailable');
     isRecording = false;
+    stopSttStream();
     return false;
   }
 

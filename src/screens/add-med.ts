@@ -21,6 +21,8 @@ export interface AddMedState {
   isRecording: boolean;
   voiceTranscript: string;
   voiceInterim: string;
+  // Set when the mic could not be opened, so the screen can explain why.
+  voiceError: string;
 }
 
 export function createAddMedState(): AddMedState {
@@ -34,6 +36,7 @@ export function createAddMedState(): AddMedState {
     isRecording: false,
     voiceTranscript: '',
     voiceInterim: '',
+    voiceError: '',
   };
 }
 
@@ -181,6 +184,13 @@ function renderVoiceStep(state: AddMedState): string {
     }
     lines.push('');
     lines.push('  Tap to stop recording');
+  } else if (state.voiceError) {
+    lines.push(`  ${ICONS.ALERT} Voice unavailable`);
+    lines.push('');
+    lines.push(`  ${state.voiceError}`);
+    lines.push('');
+    lines.push('  Tap to retry, or 2xTap to go');
+    lines.push('  back and pick from the list.');
   } else {
     lines.push('  Voice Input');
     lines.push('');
@@ -366,6 +376,7 @@ export function handleAddMedSelect(state: AddMedState): AddMedState {
       // Check if user selected the voice option
       if (selected === VOICE_OPTION) {
         state.step = 'voice';
+        state.voiceError = '';
         state.isRecording = false;
         state.voiceTranscript = '';
         state.voiceInterim = '';
@@ -431,6 +442,7 @@ export function handleAddMedBack(state: AddMedState): AddMedState | null {
       state.isRecording = false;
       state.voiceTranscript = '';
       state.voiceInterim = '';
+      state.voiceError = '';
       state.step = 'name';
       state.selectedIndex = 0;
       break;
@@ -440,6 +452,7 @@ export function handleAddMedBack(state: AddMedState): AddMedState | null {
       state.isRecording = false;
       state.voiceTranscript = '';
       state.voiceInterim = '';
+      state.voiceError = '';
       break;
     case 'dosage':
       state.step = 'name';

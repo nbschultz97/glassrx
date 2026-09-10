@@ -201,8 +201,13 @@ function handleTap() {
           }
           updateDisplay(renderAddMed(addMedState));
         } else {
-          // Start recording
-          const started = startRecording((snapshot) => {
+          // Start recording. Opening the mic is async, so paint an optimistic
+          // "listening" frame and correct it if the mic never opens.
+          addMedState.voiceError = '';
+          addMedState.isRecording = true;
+          updateDisplay(renderAddMed(addMedState));
+
+          void startRecording((snapshot) => {
             addMedState = updateVoiceTranscript(
               addMedState,
               snapshot.finalText,
@@ -210,9 +215,14 @@ function handleTap() {
               snapshot.finished
             );
             updateDisplay(renderAddMed(addMedState));
+          }).then((started) => {
+            if (started) return;
+            addMedState.isRecording = false;
+            addMedState.voiceError = 'Mic could not be opened.';
+            if (addMedState.step === 'voice') {
+              updateDisplay(renderAddMed(addMedState));
+            }
           });
-          addMedState.isRecording = started;
-          updateDisplay(renderAddMed(addMedState));
         }
         break;
       }
