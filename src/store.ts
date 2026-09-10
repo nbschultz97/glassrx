@@ -37,6 +37,19 @@ function setItem(key: string, value: string): void {
   }
 }
 
+/**
+ * Generic persisted key/value access, for modules that own their own state
+ * (licensing, scheduler bookkeeping) and need it to survive an Android
+ * WebView suspend — where in-memory state is gone on relaunch.
+ */
+export function getStoredValue(key: string): string | null {
+  return getItem(key);
+}
+
+export function setStoredValue(key: string, value: string): void {
+  setItem(key, value);
+}
+
 // --- Medications ---
 
 export function getMedications(): Medication[] {

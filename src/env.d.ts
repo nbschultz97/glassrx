@@ -14,6 +14,8 @@ interface ImportMetaEnv {
    * inside the .ehpk.
    */
   readonly VITE_STT_API_KEY: string;
+  /** Where users go to subscribe, shown on the Pro screen. */
+  readonly VITE_PRO_URL: string;
 }
 
 interface ImportMeta {

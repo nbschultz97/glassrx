@@ -50,6 +50,7 @@ export type Screen =
   | 'reminder'
   | 'history'
   | 'med_list'
+  | 'pro'
   | 'settings';
 
 export const FREQUENCY_LABELS: Record<MedFrequency, string> = {

@@ -2,11 +2,40 @@
 // Checks medication schedules and triggers alerts
 
 import type { Medication, ReminderAlert } from './types';
-import { getMedications, getDoseLogs, formatDate } from './store';
+import {
+  getMedications,
+  getDoseLogs,
+  formatDate,
+  getStoredValue,
+  setStoredValue,
+} from './store';
+
+const ALERTED_KEY = 'glassrx_alerted';
 
 let checkInterval: ReturnType<typeof setInterval> | null = null;
 let onAlert: ((alert: ReminderAlert) => void) | null = null;
+
+// Which dose alerts have already fired. Persisted because an Android WebView
+// suspend discards in-memory state, and a relaunch would otherwise re-alert
+// every dose still inside its window.
 let alertedThisCycle: Set<string> = new Set();
+
+function loadAlerted() {
+  const raw = getStoredValue(ALERTED_KEY);
+  if (!raw) return;
+  try {
+    const today = formatDate(new Date());
+    const keys = JSON.parse(raw) as string[];
+    // Keys embed the date, so yesterday's entries are dropped on load.
+    alertedThisCycle = new Set(keys.filter((k) => k.endsWith(`_${today}`)));
+  } catch {
+    alertedThisCycle = new Set();
+  }
+}
+
+function persistAlerted() {
+  setStoredValue(ALERTED_KEY, JSON.stringify([...alertedThisCycle]));
+}
 
 // How many minutes before scheduled time to show reminder
 const EARLY_REMINDER_MINUTES = 2;
@@ -15,6 +44,7 @@ const MISSED_THRESHOLD_MINUTES = 60;
 
 export function startScheduler(alertCallback: (alert: ReminderAlert) => void) {
   onAlert = alertCallback;
+  loadAlerted();
   // Check every 30 seconds
   checkInterval = setInterval(checkReminders, 30_000);
   // Immediate check on start
@@ -60,6 +90,7 @@ function checkReminders() {
         !alertedThisCycle.has(alertKey)
       ) {
         alertedThisCycle.add(alertKey);
+        persistAlerted();
         if (onAlert) {
           onAlert({
             medId: med.id,
@@ -72,8 +103,8 @@ function checkReminders() {
       }
 
       // Reset alert flag after the missed window passes
-      if (diff > MISSED_THRESHOLD_MINUTES) {
-        alertedThisCycle.delete(alertKey);
+      if (diff > MISSED_THRESHOLD_MINUTES && alertedThisCycle.delete(alertKey)) {
+        persistAlerted();
       }
     }
   }

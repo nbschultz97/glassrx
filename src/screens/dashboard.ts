@@ -21,7 +21,7 @@ export function renderDashboard(): string {
         '  Tap to add your first',
         '  medication or supplement.',
       ].join('\n'),
-      'Tap: Add medication  2xTap: Exit'
+      'Tap:add med  Scroll:menu  2xTap:exit'
     );
   }
 
@@ -75,7 +75,7 @@ export function renderDashboard(): string {
   return screenLayout(
     'Dashboard',
     lines.join('\n'),
-    'Tap:mark taken  Swipe:scroll  2xTap:menu'
+    'Tap:mark taken  Scroll:menu  2xTap:exit'
   );
 }
 

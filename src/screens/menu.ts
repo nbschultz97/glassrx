@@ -17,6 +17,7 @@ export const MENU_ITEMS = [
   { id: 'add_med', label: 'Add Medication', icon: ICONS.PENDING, desc: 'Add new med/supplement' },
   { id: 'med_list', label: 'My Medications', icon: ICONS.CHECK, desc: 'View & manage meds' },
   { id: 'history', label: 'History', icon: ICONS.CLOCK, desc: 'Adherence & logs' },
+  { id: 'pro', label: 'GlassRx Pro', icon: ICONS.STAR, desc: 'Voice input' },
 ] as const;
 
 export type MenuAction = (typeof MENU_ITEMS)[number]['id'];
@@ -39,7 +40,7 @@ export function renderMenu(state: MenuState): string {
   return screenLayout(
     'Menu',
     lines.join('\n'),
-    'Tap:select  Scroll:browse  2xTap:exit app'
+    'Tap:select  Scroll:browse  2xTap:back'
   );
 }
 

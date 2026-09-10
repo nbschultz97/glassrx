@@ -34,6 +34,8 @@ import {
   type MedListState,
 } from './screens/med-list';
 import { renderHistory } from './screens/history';
+import { renderPro, createProState, type ProState } from './screens/pro';
+import { refreshLicense } from './license';
 import {
   renderMenu,
   handleMenuScroll,
@@ -52,6 +54,7 @@ let bridge: Awaited<ReturnType<typeof waitForEvenAppBridge>>;
 let addMedState: AddMedState = createAddMedState();
 let medListState: MedListState = createMedListState();
 let menuState: MenuState = createMenuState();
+let proState: ProState = createProState();
 let activeReminder: ReminderAlert | null = null;
 let snoozeTimers: ReturnType<typeof setTimeout>[] = [];
 
@@ -94,6 +97,9 @@ async function main() {
   if (meds.length > 0) {
     ensureTodayLogs(meds);
   }
+
+  // Confirm entitlement in the background; the dashboard does not wait on it.
+  void refreshLicense();
 
   // Start the reminder scheduler
   startScheduler(handleReminderAlert);
@@ -243,6 +249,17 @@ function handleTap() {
       updateDisplay(renderMedList(medListState));
       break;
 
+    case 'pro':
+      if (!proState.checking) {
+        proState.checking = true;
+        updateDisplay(renderPro(proState));
+        void refreshLicense().then(() => {
+          proState.checking = false;
+          if (currentScreen === 'pro') updateDisplay(renderPro(proState));
+        });
+      }
+      break;
+
     case 'settings':
       navigateTo('dashboard');
       break;
@@ -268,6 +285,9 @@ function handleTap() {
           case 'history':
             navigateTo('history');
             break;
+          case 'pro':
+            navigateTo('pro');
+            break;
         }
       }
       break;
@@ -276,6 +296,13 @@ function handleTap() {
 
 function handleScroll(direction: 'up' | 'down') {
   switch (currentScreen) {
+    case 'dashboard':
+      // Scroll replaces the old double-tap route into the menu.
+      menuState = createMenuState();
+      currentScreen = 'menu' as Screen;
+      updateDisplay(renderMenu(menuState));
+      break;
+
     case 'add_med_name':
     case 'add_med_dosage':
     case 'add_med_frequency':
@@ -314,10 +341,10 @@ function handleScroll(direction: 'up' | 'down') {
 function handleDoubleTap() {
   switch (currentScreen) {
     case 'dashboard':
-      // Open menu
-      menuState = createMenuState();
-      currentScreen = 'menu' as Screen;
-      updateDisplay(renderMenu(menuState));
+      // Dashboard is the root page. The submission checklist requires a
+      // root-page double-tap to raise the system exit dialog (exitMode 1 —
+      // the user confirms), not to navigate. The menu moved to scroll.
+      bridge.shutDownPageContainer(1);
       break;
 
     case 'reminder':
@@ -362,10 +389,14 @@ function handleDoubleTap() {
       navigateTo('dashboard');
       break;
 
+    case 'pro':
+      navigateTo('dashboard');
+      break;
+
     default:
-      // Menu → exit app
+      // Menu is no longer the root page, so back out to the dashboard.
       if (currentScreen === ('menu' as Screen)) {
-        bridge.shutDownPageContainer(1);
+        navigateTo('dashboard');
       }
       break;
   }
@@ -374,11 +405,32 @@ function handleDoubleTap() {
 function handleSysEvent(sysEvent: any) {
   switch (sysEvent.eventType) {
     case OsEventTypeList.FOREGROUND_ENTER_EVENT:
-      // App resumed — refresh display
+      // An Android WebView may have been suspended while we were away, which
+      // silently kills mic capture and drops the STT socket. Neither comes
+      // back on its own, so tear down any capture we think is running and
+      // return the user to a state they can re-trigger, rather than leaving
+      // the screen claiming "Listening..." at a dead stream.
+      if (getIsRecording()) {
+        stopRecording();
+        addMedState.isRecording = false;
+        addMedState.voiceInterim = '';
+        if (!addMedState.voiceTranscript) {
+          addMedState.voiceError = 'Recording stopped while away.';
+        }
+      }
+      // Re-check entitlement too: the user may have just paid on their phone.
+      void refreshLicense().then(() => {
+        if (currentScreen === 'pro') updateDisplay(renderPro(proState));
+      });
       refreshCurrentScreen();
       break;
     case OsEventTypeList.FOREGROUND_EXIT_EVENT:
-      // App going to background — scheduler keeps running
+      // Release the mic rather than holding a capture the OS is about to
+      // suspend anyway; a dead socket left open fails the beta lock check.
+      if (getIsRecording()) {
+        stopRecording();
+        addMedState.isRecording = false;
+      }
       break;
     case OsEventTypeList.SYSTEM_EXIT_EVENT:
     case OsEventTypeList.ABNORMAL_EXIT_EVENT:
@@ -407,6 +459,10 @@ function navigateTo(screen: Screen) {
     case 'history':
       updateDisplay(renderHistory());
       break;
+    case 'pro':
+      proState = createProState();
+      updateDisplay(renderPro(proState));
+      break;
     case 'reminder':
       if (activeReminder) {
         updateDisplay(renderReminder(activeReminder));
@@ -432,6 +488,9 @@ function refreshCurrentScreen() {
       break;
     case 'history':
       updateDisplay(renderHistory());
+      break;
+    case 'pro':
+      updateDisplay(renderPro(proState));
       break;
     case 'reminder':
       if (activeReminder) {

@@ -3,6 +3,7 @@
 
 import { AudioInputSource } from '@evenrealities/even_hub_sdk';
 
+import { isPro } from '../license';
 import { startSttStream, sendPcm, stopSttStream, isConfigured, type SttCallback } from './stt';
 
 let bridge: any = null;
@@ -17,7 +18,9 @@ export function initRecorder(appBridge: any) {
 }
 
 export function canRecord(): boolean {
-  return isConfigured() && bridge != null;
+  // Voice is the paid tier. The Worker enforces this too — this check only
+  // keeps the option off the list for users who can't use it.
+  return isConfigured() && bridge != null && isPro();
 }
 
 export async function startRecording(onSnapshot: SttCallback): Promise<boolean> {
