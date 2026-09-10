@@ -1,0 +1,11 @@
+{
+  "package_id": "com.glassrx.medtracker",
+  "name": "GlassRx",
+  "version": "1.0.0",
+  "edition": "202601",
+  "min_sdk_version": "0.0.15",
+  "entrypoint": "index.html",
+  "description": "Medication & supplement tracker with smart reminders. Never miss a dose — tap to confirm, track your adherence, manage 40+ common medications and supplements.",
+  "permissions": [],
+  "supported_languages": ["en"]
+}
